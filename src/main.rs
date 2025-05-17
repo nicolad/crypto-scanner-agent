@@ -53,12 +53,13 @@ async fn spawn_binance_feed(tx: watch::Sender<Message>) {
     }
 }
 
-async fn handle_socket(
-    ws: tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::ConnectorStream<tokio::net::TcpStream>,
-    >,
+async fn handle_socket<S>(
+    ws: tokio_tungstenite::WebSocketStream<S>,
     tx: &watch::Sender<Message>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> Result<(), Box<dyn Error + Send + Sync>>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let (_sink, mut stream) = ws.split();
     while let Some(Ok(frame)) = stream.next().await {
         if let tungstenite::Message::Text(txt) = frame {
