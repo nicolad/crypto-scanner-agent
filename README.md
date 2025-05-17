@@ -34,3 +34,17 @@ If you have the Shuttle CLI installed, you can alternatively run
 cargo shuttle run
 ```
 which launches the application inside Shuttle's runtime. This mirrors how the service would run when deployed through Shuttle.
+
+### Helper Scripts
+
+For convenience, use the provided shell scripts to run or deploy via Shuttle.
+
+```bash
+./run.sh
+```
+Runs the service locally using `shuttle run` and the `Secrets.toml` file in the repository root.
+
+```bash
+./deploy.sh
+```
+Deploys the application to Shuttle using the same secrets file.
