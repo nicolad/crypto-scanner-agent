@@ -1,0 +1,12 @@
+<ul id="feed"></ul>
+<script>
+ const ul = document.getElementById("feed");
+ const ws = new WebSocket("wss://" + location.host + "/websocket");
+ ws.onmessage = ev => {
+   const s = JSON.parse(ev.data);
+   const li = document.createElement("li");
+   li.textContent = `${s.symbol}: +${s.pct_gain_24h}%  vol $${(s.quote_vol_usdt/1e6).toFixed(1)}M`;
+   ul.prepend(li);
+   if (ul.children.length > 100) ul.lastChild.remove();
+ };
+</script>

@@ -8,105 +8,81 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::Serialize;
+use serde_json;
 use shuttle_axum::ShuttleAxum;
-use tokio::{
-    sync::{watch, Mutex},
-    time::sleep,
-};
+use tokio::sync::{watch, Mutex};
+use tokio_tungstenite::{connect_async, tungstenite};
 use tower_http::services::ServeDir;
-use rig::{
-    completion::{Prompt, ToolDefinition},
-    providers,
-    tool::Tool,
-};
-use thiserror::Error;
+use std::error::Error;
 use tracing_subscriber;
+
+#[derive(Serialize, Clone)]
+struct Signal {
+    symbol: String,
+    pct_gain_24h: f64,
+    quote_vol_usdt: f64,
+    last_price: f64,
+    ts: DateTime<Utc>,
+}
 
 struct State {
     clients_count: usize,
     rx: watch::Receiver<Message>,
 }
 
-const PAUSE_SECS: u64 = 15;
-const STATUS_URI: &str = "https://api.shuttle.dev/.healthz";
-
-#[derive(Serialize)]
-struct Response {
-    clients_count: usize,
-    #[serde(rename = "dateTime")]
-    date_time: DateTime<Utc>,
-    is_up: bool,
-}
-
-#[derive(Deserialize)]
-struct OperationArgs {
-    x: i32,
-    y: i32,
-}
-
-#[derive(Debug, Error)]
-#[error("Math error")]
-struct MathError;
-
-#[derive(Deserialize, Serialize)]
-struct Adder;
-impl Tool for Adder {
-    const NAME: &'static str = "add";
-
-    type Error = MathError;
-    type Args = OperationArgs;
-    type Output = i32;
-
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "add".to_string(),
-            description: "Add x and y together".to_string(),
-            parameters: json!({
-                "type": "object",
-                "properties": {
-                    "x": { "type": "number", "description": "The first number to add" },
-                    "y": { "type": "number", "description": "The second number to add" }
-                }
-            }),
-        }
-    }
-
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        println!("[tool-call] Adding {} and {}", args.x, args.y);
-        Ok(args.x + args.y)
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-struct Subtract;
-impl Tool for Subtract {
-    const NAME: &'static str = "subtract";
-
-    type Error = MathError;
-    type Args = OperationArgs;
-    type Output = i32;
-
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        serde_json::from_value(json!({
-            "name": "subtract",
-            "description": "Subtract y from x (i.e.: x - y)",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "x": { "type": "number", "description": "The number to subtract from" },
-                    "y": { "type": "number", "description": "The number to subtract" }
+async fn spawn_binance_feed(tx: watch::Sender<Message>) {
+    let url = "wss://stream.binance.com:9443/ws/!ticker@arr";
+    loop {
+        match connect_async(url).await {
+            Ok((ws, _)) => {
+                tracing::info!("\u{1f7e2} Connected to Binance stream");
+                if let Err(e) = handle_socket(ws, &tx).await {
+                    tracing::warn!("Binance WS error: {:?}", e);
                 }
             }
-        }))
-        .expect("Tool Definition")
+            Err(e) => tracing::error!("WS connect failed: {:?}", e),
+        }
+        for delay in [2u64, 4, 8, 16] {
+            tracing::info!("Reconnect in {}s", delay);
+            tokio::time::sleep(Duration::from_secs(delay)).await;
+            if connect_async(url).await.is_ok() {
+                break;
+            }
+        }
     }
+}
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        println!("[tool-call] Subtracting {} from {}", args.y, args.x);
-        Ok(args.x - args.y)
+async fn handle_socket(
+    ws: tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::ConnectorStream<tokio::net::TcpStream>,
+    >,
+    tx: &watch::Sender<Message>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (_sink, mut stream) = ws.split();
+    while let Some(Ok(frame)) = stream.next().await {
+        if let tungstenite::Message::Text(txt) = frame {
+            let parsed: serde_json::Value = serde_json::from_str(&txt)?;
+            if let Some(arr) = parsed.as_array() {
+                for obj in arr {
+                    let pct: f64 = obj["P"].as_str().unwrap_or("0").parse()?;
+                    let vol: f64 = obj["q"].as_str().unwrap_or("0").parse()?;
+                    if pct >= 5.0 && vol >= 1_000_000.0 {
+                        let sig = Signal {
+                            symbol: obj["s"].as_str().unwrap().to_owned(),
+                            pct_gain_24h: pct,
+                            quote_vol_usdt: vol,
+                            last_price: obj["c"].as_str().unwrap_or("0").parse()?,
+                            ts: Utc::now(),
+                        };
+                        let json = serde_json::to_string(&sig)?;
+                        let _ = tx.send(Message::Text(json));
+                    }
+                }
+            }
+        }
     }
+    Ok(())
 }
 
 #[shuttle_runtime::main]
@@ -116,32 +92,10 @@ async fn main() -> ShuttleAxum {
         .with_target(false)
         .init();
 
-    let (tx, rx) = watch::channel(Message::Text("{}".to_string()));
+    let (tx, rx) = watch::channel(Message::Text("{}".into()));
+    tokio::spawn(spawn_binance_feed(tx.clone()));
 
     let state = Arc::new(Mutex::new(State { clients_count: 0, rx }));
-
-    // Spawn a thread to continually check the status of the api
-    let state_send = state.clone();
-    tokio::spawn(async move {
-        let duration = Duration::from_secs(PAUSE_SECS);
-
-        loop {
-            let is_up = reqwest::get(STATUS_URI).await.is_ok_and(|r| r.status().is_success());
-
-            let response = Response {
-                clients_count: state_send.lock().await.clients_count,
-                date_time: Utc::now(),
-                is_up,
-            };
-            let msg = serde_json::to_string(&response).unwrap();
-
-            if tx.send(Message::Text(msg)).is_err() {
-                break;
-            }
-
-            sleep(duration).await;
-        }
-    });
 
     let router = Router::new()
         .route("/websocket", get(websocket_handler))
@@ -159,16 +113,6 @@ async fn websocket_handler(
 }
 
 async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
-    // Create a deepseek client and calculator agent for each connection
-    let client = providers::deepseek::Client::from_env();
-    let agent = client
-        .agent(providers::deepseek::DEEPSEEK_CHAT)
-        .preamble("You are a calculator here to help the user perform arithmetic operations. Use the tools provided to answer the user's question.")
-        .max_tokens(1024)
-        .tool(Adder)
-        .tool(Subtract)
-        .build();
-
     let (mut sender, mut receiver) = stream.split();
 
     let mut rx = {
@@ -177,7 +121,6 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
         state.rx.clone()
     };
 
-    // This task will receive watch messages and forward it to this connected client.
     let mut send_task = tokio::spawn(async move {
         while let Ok(()) = rx.changed().await {
             let msg = rx.borrow().clone();
@@ -188,23 +131,14 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
         }
     });
 
-    // This task will receive messages from this client and respond using the agent.
     let mut recv_task = tokio::spawn(async move {
-        while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            if let Ok(answer) = agent.prompt(text).await {
-                if sender.send(Message::Text(answer)).await.is_err() {
-                    break;
-                }
-            }
-        }
+        while let Some(Ok(_)) = receiver.next().await {}
     });
 
-    // If any one of the tasks exit, abort the other.
     tokio::select! {
         _ = (&mut send_task) => recv_task.abort(),
         _ = (&mut recv_task) => send_task.abort(),
     };
 
-    // This client disconnected
     state.lock().await.clients_count -= 1;
 }
