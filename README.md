@@ -4,6 +4,13 @@ This project is a minimal Axum application that streams cryptocurrency gainers o
 Incoming data is pulled from the Binance `!ticker@arr` feed and filtered server side before being broadcast to any connected clients.
 A small example client is served from the `static` directory.
 
+```mermaid
+flowchart TD
+    A["Binance !ticker@arr stream"] -->|"raw data"| B(crypto-scanner-agent)
+    B -->|"filtered signals"| C["WebSocket clients"]
+    B -->|"serves"| D["HTML client"]
+```
+
 ## Prerequisites
 
 - Install [Rust](https://www.rust-lang.org/tools/install).
