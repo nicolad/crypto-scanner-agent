@@ -17,7 +17,7 @@ use tower_http::services::ServeDir;
 
 use stream::spawn_binance_feed;
 use ws::{websocket_handler, State};
-use crate::VERSION;
+use crypto_scanner_agent::VERSION;
 
 #[derive(Serialize)]
 struct VersionResponse<'a> {
