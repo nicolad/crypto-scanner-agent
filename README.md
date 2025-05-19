@@ -88,6 +88,11 @@ crypto gainer service:
 - `sentiment` showcases running several extraction agents in parallel.
 - `calculator` illustrates using DeepSeek tools for simple arithmetic.
 
+When issuing multiple DeepSeek requests, the examples leverage
+`futures::stream::iter` with `buffer_unordered` to run calls concurrently.
+Successful responses are cached so repeated runs avoid unnecessary network
+traffic.
+
 ## Canonical Cargo Commands
 
 The helper scripts above are optional. You can perform the same tasks using
