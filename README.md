@@ -55,3 +55,28 @@ Runs the service locally using `shuttle run` and the `Secrets.toml` file in the 
 ./deploy.sh
 ```
 Deploys the application to Shuttle using the same secrets file.
+
+## Formatting and Linting
+
+Rust code in this repository follows the standard formatting and linting tools provided by Cargo.
+
+```bash
+./format.sh  # runs `cargo fmt --all`
+./lint.sh    # runs `cargo clippy --all-targets --all-features -- -D warnings`
+```
+
+You can also invoke them directly:
+
+```bash
+cargo fmt --all
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+## Running Tests
+
+Execute the unit tests with Cargo:
+
+```bash
+cargo test
+```
+
