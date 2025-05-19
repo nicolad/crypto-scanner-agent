@@ -74,13 +74,20 @@ async fn handle_socket<S>(
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
-    let (_sink, mut stream) = ws.split();
+    let (mut sink, mut stream) = ws.split();
     while let Some(Ok(frame)) = stream.next().await {
-        if let tungstenite::Message::Text(txt) = frame {
-            for sig in extract_signals_from_text(&txt)? {
-                let json = serde_json::to_string(&sig)?;
-                let _ = tx.send(Message::Text(json));
+        match frame {
+            tungstenite::Message::Text(txt) => {
+                for sig in extract_signals_from_text(&txt)? {
+                    let json = serde_json::to_string(&sig)?;
+                    let _ = tx.send(Message::Text(json));
+                }
             }
+            tungstenite::Message::Ping(payload) => {
+                // Echo the ping payload back as recommended by the Binance docs
+                sink.send(tungstenite::Message::Pong(payload)).await?;
+            }
+            _ => {}
         }
     }
     Ok(())
