@@ -121,5 +121,55 @@ mod tests {
         let json = "{ invalid json }";
         assert!(extract_signals_from_text(json).is_err());
     }
+
+    #[tokio::test]
+    async fn test_extract_signals_multiple_valid_entries() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "8.0",
+                "q": "2000000",
+                "c": "30000"
+            },
+            {
+                "s": "ETHUSDT",
+                "P": "5.0",
+                "q": "1500000",
+                "c": "2000"
+            }
+        ]"#;
+
+        let signals = extract_signals_from_text(json).unwrap();
+        assert_eq!(signals.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_signals_non_numeric_fields_error() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "five",
+                "q": "1500000",
+                "c": "30000"
+            }
+        ]"#;
+
+        assert!(extract_signals_from_text(json).is_err());
+    }
+
+    #[test]
+    fn test_extract_signals_numeric_values_not_strings() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": 10,
+                "q": 2000000,
+                "c": 30000
+            }
+        ]"#;
+
+        let signals = extract_signals_from_text(json).unwrap();
+        assert!(signals.is_empty());
+    }
 }
 
