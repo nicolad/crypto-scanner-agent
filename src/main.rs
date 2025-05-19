@@ -3,8 +3,7 @@ mod ws;
 
 use std::sync::Arc;
 
-use axum::{extract::ws::Message, routing::get, Extension, Router};
-use shuttle_axum::ShuttleAxum;
+use shuttle_axum::{axum::{extract::ws::Message, routing::get, Extension, Router}, ShuttleAxum};
 use tokio::sync::{watch, Mutex};
 use tower_http::services::ServeDir;
 
