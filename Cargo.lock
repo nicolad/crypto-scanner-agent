@@ -359,11 +359,13 @@ dependencies = [
 name = "crypto-scanner-agent"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "chrono",
  "futures",
  "reqwest",
  "rig-core",
+ "schemars",
  "serde",
  "serde_json",
  "shuttle-axum",
