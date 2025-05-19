@@ -1,6 +1,6 @@
 use std::{error::Error, time::Duration};
 
-use axum::extract::ws::Message;
+use shuttle_axum::axum::extract::ws::Message;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use serde::Serialize;
