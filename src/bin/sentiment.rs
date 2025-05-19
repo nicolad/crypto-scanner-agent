@@ -1,7 +1,7 @@
 use std::env;
 
 use rig::pipeline::agent_ops::extract;
-use rig::providers::deepseek::client::Client;
+use rig::providers::deepseek::Client;
 use rig::{
     parallel,
     pipeline::{self, passthrough, Op},

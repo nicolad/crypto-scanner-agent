@@ -10,6 +10,7 @@ use rig::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use thiserror::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -54,7 +55,7 @@ struct OperationArgs {
     y: i32,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 #[error("Math error")]
 struct MathError;
 
