@@ -21,7 +21,10 @@ async fn main() -> ShuttleAxum {
     let (tx, rx) = watch::channel(Message::Text("{}".into()));
     tokio::spawn(spawn_binance_feed(tx));
 
-    let state = Arc::new(Mutex::new(State { clients_count: 0, rx }));
+    let state = Arc::new(Mutex::new(State {
+        clients_count: 0,
+        rx,
+    }));
 
     let router = Router::new()
         .route("/websocket", get(websocket_handler))

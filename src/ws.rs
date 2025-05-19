@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{ws::{Message, WebSocket}, WebSocketUpgrade},
+    extract::{
+        ws::{Message, WebSocket},
+        WebSocketUpgrade,
+    },
     response::IntoResponse,
     Extension,
 };
@@ -39,9 +42,8 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
         }
     });
 
-    let mut recv_task = tokio::spawn(async move {
-        while let Some(Ok(_)) = receiver.next().await {}
-    });
+    let mut recv_task =
+        tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
 
     tokio::select! {
         _ = (&mut send_task) => recv_task.abort(),
@@ -50,4 +52,3 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
 
     state.lock().await.clients_count -= 1;
 }
-

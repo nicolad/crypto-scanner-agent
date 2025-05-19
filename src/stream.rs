@@ -172,4 +172,3 @@ mod tests {
         assert!(signals.is_empty());
     }
 }
-
