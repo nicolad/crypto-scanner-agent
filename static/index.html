@@ -1,12 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Crypto Gainers</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #0a0a0a;
+    color: #d1d4dc;
+    margin: 0;
+    padding: 0.5rem;
+}
+#feed {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#feed li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-bottom: 1px solid #2a2e39;
+}
+#feed li span.symbol {
+    font-weight: bold;
+    color: #ffffff;
+}
+#feed li span.pct {
+    color: #0ecb81;
+    margin-left: 1rem;
+}
+#feed li span.vol {
+    color: #787b86;
+    margin-left: 1rem;
+}
+</style>
+</head>
+<body>
 <ul id="feed"></ul>
 <script>
- const ul = document.getElementById("feed");
- const ws = new WebSocket("wss://" + location.host + "/websocket");
- ws.onmessage = ev => {
-   const s = JSON.parse(ev.data);
-   const li = document.createElement("li");
-   li.textContent = `${s.symbol}: +${s.pct_gain_24h}%  vol $${(s.quote_vol_usdt/1e6).toFixed(1)}M`;
-   ul.prepend(li);
-   if (ul.children.length > 100) ul.lastChild.remove();
- };
+const ul = document.getElementById("feed");
+const ws = new WebSocket("wss://" + location.host + "/websocket");
+ws.onmessage = ev => {
+  const s = JSON.parse(ev.data);
+  const li = document.createElement("li");
+
+  const symbol = document.createElement("span");
+  symbol.className = "symbol";
+  symbol.textContent = s.symbol;
+
+  const pct = document.createElement("span");
+  pct.className = "pct";
+  pct.textContent = `+${s.pct_gain_24h}%`;
+
+  const vol = document.createElement("span");
+  vol.className = "vol";
+  vol.textContent = `vol $${(s.quote_vol_usdt/1e6).toFixed(1)}M`;
+
+  li.appendChild(symbol);
+  li.appendChild(pct);
+  li.appendChild(vol);
+
+  ul.prepend(li);
+  if (ul.children.length > 100) ul.lastChild.remove();
+};
 </script>
+</body>
+</html>
