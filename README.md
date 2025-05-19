@@ -11,6 +11,39 @@ flowchart TD
     B -->|"serves"| D["HTML client"]
 ```
 
+## Architecture Overview
+
+The server connects to Binance using **tokio_tungstenite**, filters the incoming
+messages, then broadcasts them over an Axum WebSocket route. A watch channel
+acts as the bridge between the feed task and any connected clients.
+
+```mermaid
+flowchart TD
+    A["Binance WebSocket"] --> B["tokio_tungstenite stream"]
+    B --> C["Signal filter"]
+    C --> D["watch channel"]
+    D --> E["Axum WebSocket handler"]
+    E --> F["Browser clients"]
+```
+
+### Data Flow Details
+
+```mermaid
+sequenceDiagram
+    participant Binance
+    participant Feeder as spawn_binance_feed
+    participant Watch as watch::channel
+    participant Handler as websocket_handler
+    participant Client
+
+    Binance-->>Feeder: !ticker@arr frames
+    Feeder->>Watch: send(Message)
+    Client->>Handler: connect
+    Handler->>Watch: subscribe
+    Watch-->>Handler: broadcast Message
+    Handler-->>Client: transmit JSON signal
+```
+
 ## Prerequisites
 
 - Install [Rust](https://www.rust-lang.org/tools/install).
