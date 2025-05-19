@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 clear
+LOG_DIR="logs"
+# Remove existing log files so each run starts fresh
+rm -rf "$LOG_DIR"
+
 RUST_LOG=debug shuttle run --secrets Secrets.toml &
 PID=$!
 # Wait briefly for the server to start listening

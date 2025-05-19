@@ -83,7 +83,7 @@ For convenience, use the provided shell scripts to run or deploy via Shuttle.
 ```bash
 ./run.sh
 ```
-Runs the service locally using `shuttle run` and the `Secrets.toml` file in the repository root. The script automatically opens `http://localhost:8000/` in your default browser, loading the web UI served from `static/index.html`.
+Runs the service locally using `shuttle run` and the `Secrets.toml` file in the repository root. The script automatically opens `http://localhost:8000/` in your default browser, loading the web UI served from `static/index.html`. It also clears any existing log files under `logs/` before starting the server so each run begins with fresh logs.
 
 ```bash
 ./deploy.sh
