@@ -1,7 +1,7 @@
 use std::env;
 
 use rig::pipeline::agent_ops::extract;
-use rig::providers::openai::client::Client;
+use rig::providers::deepseek::client::Client;
 use rig::{
     parallel,
     pipeline::{self, passthrough, Op},
@@ -16,11 +16,11 @@ struct DocumentScore {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    // Create OpenAI client
-    let openai_api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
-    let openai_client = Client::new(&openai_api_key);
+    // Create DeepSeek client
+    let deepseek_api_key = env::var("DEEPSEEK_API_KEY").expect("DEEPSEEK_API_KEY not set");
+    let deepseek_client = Client::new(&deepseek_api_key);
 
-    let manipulation_agent = openai_client
+    let manipulation_agent = deepseek_client
         .extractor::<DocumentScore>("gpt-4")
         .preamble(
             "
@@ -29,7 +29,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .build();
 
-    let depression_agent = openai_client
+    let depression_agent = deepseek_client
         .extractor::<DocumentScore>("gpt-4")
         .preamble(
             "
@@ -38,7 +38,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .build();
 
-    let intelligent_agent = openai_client
+    let intelligent_agent = deepseek_client
         .extractor::<DocumentScore>("gpt-4")
         .preamble(
             "
