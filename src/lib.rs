@@ -11,3 +11,7 @@ pub mod util {
             .unwrap_or(1)
     }
 }
+
+/// The version of the `crypto-scanner-agent` crate. This is populated at
+/// compile time using the `CARGO_PKG_VERSION` environment variable.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");

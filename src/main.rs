@@ -3,12 +3,30 @@ mod ws;
 
 use std::sync::Arc;
 
-use shuttle_axum::{axum::{extract::ws::Message, routing::get, Extension, Router}, ShuttleAxum};
+use shuttle_axum::{
+    axum::{
+        extract::ws::Message,
+        routing::get,
+        Extension, Json, Router, response::IntoResponse,
+    },
+    ShuttleAxum,
+};
+use serde::Serialize;
 use tokio::sync::{watch, Mutex};
 use tower_http::services::ServeDir;
 
 use stream::spawn_binance_feed;
 use ws::{websocket_handler, State};
+use crate::VERSION;
+
+#[derive(Serialize)]
+struct VersionResponse<'a> {
+    version: &'a str,
+}
+
+async fn version_handler() -> impl IntoResponse {
+    Json(VersionResponse { version: VERSION })
+}
 
 #[shuttle_runtime::main]
 async fn main() -> ShuttleAxum {
@@ -29,6 +47,7 @@ async fn main() -> ShuttleAxum {
     }));
 
     let router = Router::new()
+        .route("/version", get(version_handler))
         .route("/websocket", get(websocket_handler))
         .nest_service("/", ServeDir::new("static"))
         .layer(Extension(state));

@@ -31,7 +31,7 @@ The Binance stream used here is public, so **no API keys are required**. The app
    ```bash
    cargo run --release
    ```
-   By default the server listens on `127.0.0.1:8000`. It exposes a WebSocket endpoint at `/websocket` and serves a basic HTML client at the root path.
+   By default the server listens on `127.0.0.1:8000`. It exposes a WebSocket endpoint at `/websocket`, a version endpoint at `/version`, and serves a basic HTML client at the root path.
    If you see a `TlsFeatureNotEnabled` error, ensure the `rustls-tls-webpki-roots` feature for `tokio-tungstenite` is enabled in `Cargo.toml`.
 3. Visit `http://localhost:8000/` in your browser to see the live feed. Each message shows a coin symbol and volume information whenever the 24h price increase exceeds 5% and the quote volume is above $1M.
 
