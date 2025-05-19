@@ -171,4 +171,67 @@ mod tests {
         let signals = extract_signals_from_text(json).unwrap();
         assert!(signals.is_empty());
     }
+
+    #[test]
+    fn test_extract_signals_empty_array() {
+        let json = "[]";
+        let signals = extract_signals_from_text(json).unwrap();
+        assert!(signals.is_empty());
+    }
+
+    #[test]
+    fn test_extract_signals_non_array_json_returns_empty() {
+        let json = "{}";
+        let signals = extract_signals_from_text(json).unwrap();
+        assert!(signals.is_empty());
+    }
+
+    #[test]
+    fn test_extract_signals_exact_threshold() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "5.0",
+                "q": "1000000",
+                "c": "100"
+            }
+        ]"#;
+
+        let signals = extract_signals_from_text(json).unwrap();
+        assert_eq!(signals.len(), 1);
+        let sig = &signals[0];
+        assert_eq!(sig.symbol, "BTCUSDT");
+        assert!((sig.pct_gain_24h - 5.0).abs() < f64::EPSILON);
+        assert!((sig.quote_vol_usdt - 1_000_000.0).abs() < f64::EPSILON);
+        assert!((sig.last_price - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_extract_signals_negative_values_filtered() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "-10",
+                "q": "2000000",
+                "c": "30000"
+            }
+        ]"#;
+
+        let signals = extract_signals_from_text(json).unwrap();
+        assert!(signals.is_empty());
+    }
+
+    #[test]
+    fn test_extract_signals_malformed_number_error() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "5.0",
+                "q": "1_000_000",
+                "c": "30000"
+            }
+        ]"#;
+
+        assert!(extract_signals_from_text(json).is_err());
+    }
 }
