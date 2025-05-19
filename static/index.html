@@ -41,7 +41,8 @@ body {
 <ul id="feed"></ul>
 <script>
 const ul = document.getElementById("feed");
-const ws = new WebSocket("wss://" + location.host + "/websocket");
+const wsScheme = location.protocol === "https:" ? "wss://" : "ws://";
+const ws = new WebSocket(wsScheme + location.host + "/websocket");
 ws.onmessage = ev => {
   const s = JSON.parse(ev.data);
   const li = document.createElement("li");
