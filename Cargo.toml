@@ -22,3 +22,5 @@ rig-core = "0.12.0"
 schemars = "0.8"
 anyhow = "1"
 thiserror = "1"
+num_cpus = "1"
+
