@@ -80,6 +80,14 @@ Execute the unit tests with Cargo:
 cargo test
 ```
 
+## Examples
+
+Two optional binaries demonstrate how to call DeepSeek outside of the
+crypto gainer service:
+
+- `sentiment` showcases running several extraction agents in parallel.
+- `calculator` illustrates using DeepSeek tools for simple arithmetic.
+
 ## Canonical Cargo Commands
 
 The helper scripts above are optional. You can perform the same tasks using
@@ -91,6 +99,10 @@ cargo run --release
 
 # run the sentiment example
 cargo run --bin sentiment --release
+
+
+# run the calculator example (optional)
+cargo run --bin calculator --release
 
 # deploy with Shuttle
 cargo shuttle deploy -- --secrets backend/Secrets.toml
