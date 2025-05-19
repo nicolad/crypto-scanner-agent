@@ -26,6 +26,22 @@ struct Signal {
     ts: DateTime<Utc>,
 }
 
+fn parse_signal(obj: &serde_json::Value) -> Result<Option<Signal>, Box<dyn Error + Send + Sync>> {
+    let pct: f64 = obj["P"].as_str().unwrap_or("0").parse()?;
+    let vol: f64 = obj["q"].as_str().unwrap_or("0").parse()?;
+    if pct >= 5.0 && vol >= 1_000_000.0 {
+        Ok(Some(Signal {
+            symbol: obj["s"].as_str().unwrap_or("").to_owned(),
+            pct_gain_24h: pct,
+            quote_vol_usdt: vol,
+            last_price: obj["c"].as_str().unwrap_or("0").parse()?,
+            ts: Utc::now(),
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 struct State {
     clients_count: usize,
     rx: watch::Receiver<Message>,
@@ -66,16 +82,7 @@ where
             let parsed: serde_json::Value = serde_json::from_str(&txt)?;
             if let Some(arr) = parsed.as_array() {
                 for obj in arr {
-                    let pct: f64 = obj["P"].as_str().unwrap_or("0").parse()?;
-                    let vol: f64 = obj["q"].as_str().unwrap_or("0").parse()?;
-                    if pct >= 5.0 && vol >= 1_000_000.0 {
-                        let sig = Signal {
-                            symbol: obj["s"].as_str().unwrap().to_owned(),
-                            pct_gain_24h: pct,
-                            quote_vol_usdt: vol,
-                            last_price: obj["c"].as_str().unwrap_or("0").parse()?,
-                            ts: Utc::now(),
-                        };
+                    if let Some(sig) = parse_signal(obj)? {
                         let json = serde_json::to_string(&sig)?;
                         let _ = tx.send(Message::Text(json));
                     }
@@ -142,4 +149,36 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
     };
 
     state.lock().await.clients_count -= 1;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn parse_signal_returns_signal_when_thresholds_met() {
+        let obj = json!({
+            "s": "BTCUSDT",
+            "P": "5.5",
+            "q": "2000000",
+            "c": "60000"
+        });
+        let sig = parse_signal(&obj).unwrap().unwrap();
+        assert_eq!(sig.symbol, "BTCUSDT");
+        assert_eq!(sig.pct_gain_24h, 5.5);
+        assert_eq!(sig.quote_vol_usdt, 2_000_000.0);
+        assert_eq!(sig.last_price, 60_000.0);
+    }
+
+    #[tokio::test]
+    async fn parse_signal_returns_none_when_below_threshold() {
+        let obj = json!({
+            "s": "ETHUSDT",
+            "P": "4.0",
+            "q": "5000000",
+            "c": "3000"
+        });
+        assert!(parse_signal(&obj).unwrap().is_none());
+    }
 }
