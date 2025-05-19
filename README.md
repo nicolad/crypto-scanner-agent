@@ -80,3 +80,19 @@ Execute the unit tests with Cargo:
 cargo test
 ```
 
+## Canonical Cargo Commands
+
+The helper scripts above are optional. You can perform the same tasks using
+standard Cargo commands:
+
+```bash
+# start the server
+cargo run --release
+
+# run the sentiment example
+cargo run --bin sentiment --release
+
+# deploy with Shuttle
+cargo shuttle deploy -- --secrets backend/Secrets.toml
+```
+
