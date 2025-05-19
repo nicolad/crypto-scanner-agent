@@ -2,7 +2,7 @@ use std::{error::Error, time::Duration};
 
 use shuttle_axum::axum::extract::ws::Message;
 use chrono::{DateTime, Utc};
-use futures::StreamExt;
+use futures::{StreamExt, SinkExt};
 use serde::Serialize;
 use tokio::sync::watch;
 use tokio_tungstenite::{connect_async, tungstenite};
