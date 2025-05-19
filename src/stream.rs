@@ -16,6 +16,35 @@ pub struct Signal {
     pub ts: DateTime<Utc>,
 }
 
+/// Parse incoming JSON text into a list of [`Signal`]s.
+///
+/// The function filters entries where the 24h percentage gain is below 5% or
+/// the quote volume is below $1M. Any valid signals are returned for further
+/// processing or broadcasting.
+fn extract_signals_from_text(txt: &str) -> Result<Vec<Signal>, Box<dyn Error + Send + Sync>> {
+    let parsed: serde_json::Value = serde_json::from_str(txt)?;
+    let mut signals = Vec::new();
+
+    if let Some(arr) = parsed.as_array() {
+        for obj in arr {
+            let pct: f64 = obj["P"].as_str().unwrap_or("0").parse()?;
+            let vol: f64 = obj["q"].as_str().unwrap_or("0").parse()?;
+            if pct >= 5.0 && vol >= 1_000_000.0 {
+                let sig = Signal {
+                    symbol: obj["s"].as_str().unwrap().to_owned(),
+                    pct_gain_24h: pct,
+                    quote_vol_usdt: vol,
+                    last_price: obj["c"].as_str().unwrap_or("0").parse()?,
+                    ts: Utc::now(),
+                };
+                signals.push(sig);
+            }
+        }
+    }
+
+    Ok(signals)
+}
+
 pub async fn spawn_binance_feed(tx: watch::Sender<Message>) {
     let url = "wss://stream.binance.com:9443/ws/!ticker@arr";
     loop {
@@ -48,26 +77,49 @@ where
     let (_sink, mut stream) = ws.split();
     while let Some(Ok(frame)) = stream.next().await {
         if let tungstenite::Message::Text(txt) = frame {
-            let parsed: serde_json::Value = serde_json::from_str(&txt)?;
-            if let Some(arr) = parsed.as_array() {
-                for obj in arr {
-                    let pct: f64 = obj["P"].as_str().unwrap_or("0").parse()?;
-                    let vol: f64 = obj["q"].as_str().unwrap_or("0").parse()?;
-                    if pct >= 5.0 && vol >= 1_000_000.0 {
-                        let sig = Signal {
-                            symbol: obj["s"].as_str().unwrap().to_owned(),
-                            pct_gain_24h: pct,
-                            quote_vol_usdt: vol,
-                            last_price: obj["c"].as_str().unwrap_or("0").parse()?,
-                            ts: Utc::now(),
-                        };
-                        let json = serde_json::to_string(&sig)?;
-                        let _ = tx.send(Message::Text(json));
-                    }
-                }
+            for sig in extract_signals_from_text(&txt)? {
+                let json = serde_json::to_string(&sig)?;
+                let _ = tx.send(Message::Text(json));
             }
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_extract_signals_basic_filtering() {
+        let json = r#"[
+            {
+                "s": "BTCUSDT",
+                "P": "5.5",
+                "q": "1500000",
+                "c": "30000"
+            },
+            {
+                "s": "ETHUSDT",
+                "P": "2.0",
+                "q": "900000",
+                "c": "2000"
+            }
+        ]"#;
+
+        let signals = extract_signals_from_text(json).unwrap();
+        assert_eq!(signals.len(), 1);
+        let sig = &signals[0];
+        assert_eq!(sig.symbol, "BTCUSDT");
+        assert!((sig.pct_gain_24h - 5.5).abs() < f64::EPSILON);
+        assert!((sig.quote_vol_usdt - 1_500_000.0).abs() < f64::EPSILON);
+        assert!((sig.last_price - 30000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_extract_signals_invalid_json() {
+        let json = "{ invalid json }";
+        assert!(extract_signals_from_text(json).is_err());
+    }
 }
 
