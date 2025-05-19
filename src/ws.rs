@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{
+use shuttle_axum::axum::{
     extract::{
         ws::{Message, WebSocket},
         WebSocketUpgrade,
