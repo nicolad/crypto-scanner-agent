@@ -121,6 +121,9 @@ crypto gainer service:
 
 - `sentiment` showcases running several extraction agents in parallel.
 - `calculator` illustrates using DeepSeek tools for simple arithmetic.
+- `nautilus_example` demonstrates a placeholder integration with
+  [Nautilus Trader](https://github.com/nautilus-trader/nautilus-trader). Enable
+  the `nautilus` feature to compile this binary.
 
 When issuing multiple DeepSeek requests, the examples leverage
 `futures::stream::iter` with `buffer_unordered` to run calls concurrently.
@@ -142,6 +145,9 @@ cargo run --bin sentiment --release
 
 # run the calculator example (optional)
 cargo run --bin calculator --release
+
+# run the Nautilus Trader example (optional)
+cargo run --bin nautilus_example --features nautilus --release
 
 # deploy with Shuttle
 cargo shuttle deploy -- --secrets backend/Secrets.toml
