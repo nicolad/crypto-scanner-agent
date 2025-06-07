@@ -66,6 +66,10 @@ OWNER = "YOUR_SOLANA_ADDRESS"
 When present, the `balances` command will default to this value if no owner is
 specified on the command line.
 
+Copy `Secrets.toml.example` to `Secrets.toml` in the repository root and fill in
+any required values such as `OWNER` or `DEEPSEEK_API_KEY`. The `Secrets.toml`
+file is git-ignored so your credentials remain private.
+
 ## Running the Server
 
 1. Clone this repository and change into its directory:
