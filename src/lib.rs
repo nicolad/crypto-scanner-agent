@@ -15,3 +15,5 @@ pub mod util {
 /// The version of the `crypto-scanner-agent` crate. This is populated at
 /// compile time using the `CARGO_PKG_VERSION` environment variable.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub mod solana;

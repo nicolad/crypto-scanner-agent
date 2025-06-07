@@ -1,14 +1,15 @@
 use anyhow::{anyhow, Result};
 use reqwest::{Client, Url};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
+
+use crypto_scanner_agent::solana::fetch_balances;
 
 const INFO_URL: &str = "https://api-v3.raydium.io/main/info";
 const PRICE_URL: &str = "https://api-v3.raydium.io/mint/price";
 const MINT_LIST_URL: &str = "https://api-v3.raydium.io/mint/list";
 const POOLS_URL: &str = "https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=default&sortType=desc&pageSize=10&page=1";
-const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 enum Command {
     ListPools,
@@ -223,63 +224,6 @@ async fn fetch_pools(client: &Client) -> Result<Vec<Pool>> {
     Ok(out)
 }
 
-async fn fetch_balances(owner: &str, rpc_url: &str) -> Result<Vec<(String, u64)>> {
-    let client = Client::new();
-
-    let sol_req = json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getBalance",
-        "params": [owner],
-    });
-    let sol_resp: Value = client.post(rpc_url).json(&sol_req).send().await?.json().await?;
-    let sol_lamports = sol_resp
-        .get("result")
-        .and_then(|r| r.get("value"))
-        .and_then(Value::as_u64)
-        .ok_or_else(|| anyhow!("invalid getBalance response"))?;
-    let mut balances = vec![("SOL".to_owned(), sol_lamports)];
-
-    let tok_req = json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getTokenAccountsByOwner",
-        "params": [
-            owner,
-            { "programId": TOKEN_PROGRAM_ID },
-            { "encoding": "jsonParsed" }
-        ]
-    });
-    let tok_resp: Value = client.post(rpc_url).json(&tok_req).send().await?.json().await?;
-    if let Some(arr) = tok_resp
-        .get("result")
-        .and_then(|r| r.get("value"))
-        .and_then(Value::as_array)
-    {
-        for acc in arr {
-            if let Some(info) = acc
-                .get("account")
-                .and_then(|a| a.get("data"))
-                .and_then(|d| d.get("parsed"))
-                .and_then(|p| p.get("info"))
-            {
-                if let (Some(mint), Some(amount_str)) = (
-                    info.get("mint").and_then(Value::as_str),
-                    info.get("tokenAmount")
-                        .and_then(|ta| ta.get("amount"))
-                        .and_then(Value::as_str),
-                ) {
-                    if let Ok(amount) = amount_str.parse::<u64>() {
-                        balances.push((mint.to_owned(), amount));
-                    }
-                }
-            }
-        }
-    }
-
-    balances.retain(|(mint, amt)| *amt > 0 || mint == "SOL");
-    Ok(balances)
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
