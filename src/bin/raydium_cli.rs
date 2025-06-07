@@ -26,10 +26,15 @@ fn parse_args() -> Result<Command> {
     match args.remove(0).as_str() {
         "list-pools" => Ok(Command::ListPools),
         "balances" => {
-            if args.is_empty() {
-                return Err(anyhow!("balances requires owner"));
-            }
-            let owner = args.remove(0);
+            // Owner can be provided as the first positional argument or via the
+            // OWNER environment variable loaded from Shuttle secrets.
+            let owner = if !args.is_empty() && !args[0].starts_with("--") {
+                args.remove(0)
+            } else {
+                std::env::var("OWNER")
+                    .map_err(|_| anyhow!("balances requires owner"))?
+            };
+
             let mut rpc = "https://api.mainnet-beta.solana.com".to_string();
             if !args.is_empty() && args[0].starts_with("--rpc=") {
                 rpc = args.remove(0)[6..].to_string();
