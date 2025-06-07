@@ -53,6 +53,19 @@ sequenceDiagram
 
 The Raydium stream used here is public, so **no API keys are required**. The application works out of the box without further configuration.
 
+### Secrets
+
+Some binaries read configuration from environment variables supplied via Shuttle
+secrets. To use the `raydium_cli` helper without passing a wallet address each
+time, add an `OWNER` entry to your `Secrets.toml`:
+
+```toml
+OWNER = "YOUR_SOLANA_ADDRESS"
+```
+
+When present, the `balances` command will default to this value if no owner is
+specified on the command line.
+
 ## Running the Server
 
 1. Clone this repository and change into its directory:
