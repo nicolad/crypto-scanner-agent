@@ -1,55 +1,53 @@
-RUN_RELEASE = cargo run --release
-SENTIMENT = cargo run --bin sentiment --release
-CALCULATOR = cargo run --bin calculator --release
-TOKEN_CHECKER = cargo run --bin token_checker -- BTC ETH
-NAUTILUS = cargo run --bin nautilus_example --features nautilus --release
-RAY_BALANCES = cargo run --bin raydium_cli --release -- balances $(OWNER)
-RAY_TOP_COINS = cargo run --bin raydium_top_coins --release
-SHUTTLE_RUN = shuttle run --secrets Secrets.toml
-DEPLOY = shuttle deploy --secrets backend/Secrets.toml
-FMT = cargo fmt --all
-LINT = cargo clippy --all-targets --all-features -- -D warnings
-CHECK = cargo check
-TEST = cargo test
+# You can uncomment the next line to use ">" instead of TAB for recipes
+# .RECIPEPREFIX = >
 
-.PHONY: run sentiment calculator token-checker raydium-balances raydium-top-coins nautilus shuttle-run deploy fmt lint check test
+SHELL := /usr/bin/env bash
+.SILENT:
 
-run:
-$(RUN_RELEASE)
+# --- Variables -------------------------------------------------------------
+RUN_RELEASE      = cargo run --release
+SENTIMENT        = cargo run --bin sentiment --release
+CALCULATOR       = cargo run --bin calculator --release
+TOKEN_CHECKER    = cargo run --bin token_checker -- BTC ETH
+NAUTILUS         = cargo run --bin nautilus_example --features nautilus --release
+RAY_BALANCES     = cargo run --bin raydium_cli --release -- balances $(OWNER)
+RAY_TOP_COINS    = cargo run --bin raydium_top_coins --release
+SHUTTLE_RUN      = shuttle run --secrets Secrets.toml
+DEPLOY           = shuttle deploy --secrets backend/Secrets.toml
+FMT              = cargo fmt --all
+LINT             = cargo clippy --all-targets --all-features -- -D warnings
+CHECK            = cargo check
+TEST             = cargo test
 
-sentiment:
-$(SENTIMENT)
 
-calculator:
-$(CALCULATOR)
+.PHONY: run sentiment calculator token-checker \
+        raydium-balances raydium-top-coins \
+        nautilus shuttle-run deploy \
+        fmt lint check test
 
-token-checker:
-$(TOKEN_CHECKER)
+run:                 ; $(RUN_RELEASE)
 
-raydium-balances:
-$(RAY_BALANCES)
+sentiment:           ; $(SENTIMENT)
 
-raydium-top-coins:
-$(RAY_TOP_COINS)
+calculator:          ; $(CALCULATOR)
 
-nautilus:
-$(NAUTILUS)
+token-checker:       ; $(TOKEN_CHECKER)
 
-shuttle-run:
-$(SHUTTLE_RUN)
+raydium-balances:    ; $(RAY_BALANCES)
 
-deploy:
-$(DEPLOY)
+raydium-top-coins:   ; $(RAY_TOP_COINS)
 
-fmt:
-$(FMT)
+nautilus:            ; $(NAUTILUS)
 
-lint:
-$(LINT)
+shuttle-run:         ; $(SHUTTLE_RUN)
 
-check:
-$(CHECK)
+deploy:              ; $(DEPLOY)
 
-test:
-$(TEST)
+fmt:                 ; $(FMT)
+
+lint:                ; $(LINT)
+
+check:               ; $(CHECK)
+
+test:                ; $(TEST)
 
