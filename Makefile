@@ -14,38 +14,38 @@ TEST = cargo test
 .PHONY: run sentiment calculator token-checker raydium-balances nautilus shuttle-run deploy fmt lint check test
 
 run:
-$(RUN_RELEASE)
+	$(RUN_RELEASE)
 
 sentiment:
-$(SENTIMENT)
+	$(SENTIMENT)
 
 calculator:
-$(CALCULATOR)
+	$(CALCULATOR)
 
 token-checker:
-$(TOKEN_CHECKER)
+	$(TOKEN_CHECKER)
 
 raydium-balances:
-$(RAY_BALANCES)
+	$(RAY_BALANCES)
 
 nautilus:
-$(NAUTILUS)
+	$(NAUTILUS)
 
 shuttle-run:
-$(SHUTTLE_RUN)
+	$(SHUTTLE_RUN)
 
 deploy:
-$(DEPLOY)
+	$(DEPLOY)
 
 fmt:
-$(FMT)
+	$(FMT)
 
 lint:
-$(LINT)
+	$(LINT)
 
 check:
-$(CHECK)
+	$(CHECK)
 
 test:
-$(TEST)
+	$(TEST)
 
