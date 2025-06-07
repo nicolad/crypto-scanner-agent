@@ -45,14 +45,19 @@ fn extract_signals_from_text(txt: &str) -> Result<Vec<Signal>, Box<dyn Error + S
     Ok(signals)
 }
 
-pub async fn spawn_binance_feed(tx: watch::Sender<Message>) {
-    let url = "wss://stream.binance.com:9443/ws/!ticker@arr";
+/// Connect to the Raydium WebSocket feed and forward any valid signals to
+/// connected WebSocket clients via the provided watch channel.
+pub async fn spawn_raydium_feed(tx: watch::Sender<Message>) {
+    // Default Raydium public feed. Can be overridden by the RAYDIUM_WS_URL
+    // environment variable if needed.
+    let url = std::env::var("RAYDIUM_WS_URL")
+        .unwrap_or_else(|_| "wss://api.raydium.io/ws".to_string());
     loop {
         match connect_async(url).await {
             Ok((ws, _)) => {
-                tracing::info!("\u{1f7e2} Connected to Binance stream");
+                tracing::info!("\u{1f7e2} Connected to Raydium stream");
                 if let Err(e) = handle_socket(ws, &tx).await {
-                    tracing::warn!("Binance WS error: {:?}", e);
+                    tracing::warn!("Raydium WS error: {:?}", e);
                 }
             }
             Err(e) => tracing::error!("WS connect failed: {:?}", e),
@@ -84,7 +89,7 @@ where
                 }
             }
             tungstenite::Message::Ping(payload) => {
-                // Echo the ping payload back as recommended by the Binance docs
+                // Echo the ping payload back as recommended by the Raydium docs
                 sink.send(tungstenite::Message::Pong(payload)).await?;
             }
             _ => {}

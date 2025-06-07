@@ -1,25 +1,25 @@
 # crypto-scanner-agent
 
 This project is a minimal Axum application that streams cryptocurrency gainers over WebSocket.
-Incoming data is pulled from the Binance `!ticker@arr` feed and filtered server side before being broadcast to any connected clients.
+Incoming data is pulled from the Raydium WebSocket feed and filtered server side before being broadcast to any connected clients.
 A small example client is served from the `static` directory.
 
 ```mermaid
 flowchart TD
-    A["Binance !ticker@arr stream"] -->|"raw data"| B(crypto-scanner-agent)
+    A["Raydium WebSocket feed"] -->|"raw data"| B(crypto-scanner-agent)
     B -->|"filtered signals"| C["WebSocket clients"]
     B -->|"serves"| D["HTML client"]
 ```
 
 ## Architecture Overview
 
-The server connects to Binance using **tokio_tungstenite**, filters the incoming
+The server connects to Raydium using **tokio_tungstenite**, filters the incoming
 messages, then broadcasts them over an Axum WebSocket route. A watch channel
 acts as the bridge between the feed task and any connected clients.
 
 ```mermaid
 flowchart TD
-    A["Binance WebSocket"] --> B["tokio_tungstenite stream"]
+    A["Raydium WebSocket"] --> B["tokio_tungstenite stream"]
     B --> C["Signal filter"]
     C --> D["watch channel"]
     D --> E["Axum WebSocket handler"]
@@ -30,13 +30,13 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Binance
-    participant Feeder as spawn_binance_feed
+    participant Raydium
+    participant Feeder as spawn_raydium_feed
     participant Watch as watch::channel
     participant Handler as websocket_handler
     participant Client
 
-    Binance-->>Feeder: !ticker@arr frames
+    Raydium-->>Feeder: trade updates
     Feeder->>Watch: send(Message)
     Client->>Handler: connect
     Handler->>Watch: subscribe
@@ -51,7 +51,7 @@ sequenceDiagram
 
 ## API Keys
 
-The Binance stream used here is public, so **no API keys are required**. The application works out of the box without further configuration.
+The Raydium stream used here is public, so **no API keys are required**. The application works out of the box without further configuration.
 
 ## Running the Server
 

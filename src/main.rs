@@ -17,7 +17,7 @@ use serde::Serialize;
 use tokio::sync::{watch, Mutex};
 use tower_http::services::ServeDir;
 
-use stream::spawn_binance_feed;
+use stream::spawn_raydium_feed;
 use ws::{websocket_handler, State};
 use crypto_scanner_agent::VERSION;
 
@@ -50,7 +50,7 @@ async fn main() -> ShuttleAxum {
         .try_init();
 
     let (tx, rx) = watch::channel(Message::Text("{}".into()));
-    tokio::spawn(spawn_binance_feed(tx));
+    tokio::spawn(spawn_raydium_feed(tx));
 
     let state = Arc::new(Mutex::new(State {
         clients_count: 0,
