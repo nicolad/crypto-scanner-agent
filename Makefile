@@ -2,7 +2,6 @@ RUN_RELEASE = cargo run --release
 SENTIMENT = cargo run --bin sentiment --release
 CALCULATOR = cargo run --bin calculator --release
 TOKEN_CHECKER = cargo run --bin token_checker -- BTC ETH
-NAUTILUS = cargo run --bin nautilus_example --features nautilus --release
 RAY_BALANCES = cargo run --bin raydium_cli --release -- balances $(OWNER)
 RAY_TOP_COINS = cargo run --bin raydium_top_coins --release
 SHUTTLE_RUN = shuttle run --secrets Secrets.toml
@@ -12,7 +11,7 @@ LINT = cargo clippy --all-targets --all-features -- -D warnings
 CHECK = cargo check
 TEST = cargo test
 
-.PHONY: run sentiment calculator token-checker raydium-balances raydium-top-coins nautilus shuttle-run deploy fmt lint check test
+.PHONY: run sentiment calculator token-checker raydium-balances raydium-top-coins shuttle-run deploy fmt lint check test
 
 run:
 	$(RUN_RELEASE)
@@ -31,9 +30,6 @@ raydium-balances:
 
 raydium-top-coins:
 $(RAY_TOP_COINS)
-
-nautilus:
-	$(NAUTILUS)
 
 shuttle-run:
 	$(SHUTTLE_RUN)
