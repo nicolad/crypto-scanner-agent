@@ -31,3 +31,6 @@ nautilus-trader = { version = "0.0.1", optional = true }
 [features]
 nautilus = ["nautilus-trader"]
 
+[dev-dependencies]
+rstest = "0.18"
+
