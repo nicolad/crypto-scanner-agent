@@ -1,6 +1,5 @@
 use futures::{stream, StreamExt};
 use std::time::{Duration, Instant};
-use rstest::rstest;
 
 async fn run_tasks(delays: Vec<u64>, concurrency: usize) -> Vec<u64> {
     stream::iter(delays)
@@ -13,20 +12,22 @@ async fn run_tasks(delays: Vec<u64>, concurrency: usize) -> Vec<u64> {
         .await
 }
 
-#[rstest(concurrency, is_parallel,
-    case(3, true),
-    case(1, false)
-)]
 #[tokio::test]
-async fn parallelism_behavior(concurrency: usize, is_parallel: bool) {
+async fn parallelism_behavior_parallel() {
     let delays = vec![100, 100, 100];
     let start = Instant::now();
-    let result = run_tasks(delays.clone(), concurrency).await;
+    let result = run_tasks(delays.clone(), 3).await;
     let elapsed = start.elapsed();
     assert_eq!(result.len(), delays.len());
-    if is_parallel {
-        assert!(elapsed < Duration::from_millis(200));
-    } else {
-        assert!(elapsed >= Duration::from_millis(300));
-    }
+    assert!(elapsed < Duration::from_millis(200));
+}
+
+#[tokio::test]
+async fn parallelism_behavior_sequential() {
+    let delays = vec![100, 100, 100];
+    let start = Instant::now();
+    let result = run_tasks(delays.clone(), 1).await;
+    let elapsed = start.elapsed();
+    assert_eq!(result.len(), delays.len());
+    assert!(elapsed >= Duration::from_millis(300));
 }
