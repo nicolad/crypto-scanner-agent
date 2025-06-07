@@ -134,6 +134,7 @@ crypto gainer service:
 
 - `sentiment` showcases running several extraction agents in parallel.
 - `calculator` illustrates using DeepSeek tools for simple arithmetic.
+- `token_checker` verifies cryptocurrency symbols with a DeepSeek agent.
 - `nautilus_example` demonstrates a placeholder integration with
   [Nautilus Trader](https://github.com/nautilus-trader/nautilus-trader). Enable
   the `nautilus` feature to compile this binary.
@@ -158,6 +159,9 @@ cargo run --bin sentiment --release
 
 # run the calculator example (optional)
 cargo run --bin calculator --release
+
+# run the token checker example (optional)
+cargo run --bin token_checker -- BTC ETH
 
 # run the Nautilus Trader example (optional)
 cargo run --bin nautilus_example --features nautilus --release
