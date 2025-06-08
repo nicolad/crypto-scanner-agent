@@ -2,6 +2,13 @@
 # 1. CONFIGURABLE KNOBS -------------------------------------------------------
 SECRETS     ?= Secrets.toml             # override:  make run SECRETS=foo.toml
 SHUTTLE_BIN ?= cargo shuttle            # override:  make shuttle-run SHUTTLE_BIN=shuttle
+ENV         ?= dev                      # override:  make run ENV=prod
+
+ifeq ($(ENV),prod)
+LOG_LEVEL=info
+else
+LOG_LEVEL=debug
+endif
 
 # Helper: export TOML keys as env vars (requires `tomlq` or compatible `yq`)
 define export_secrets
@@ -12,16 +19,16 @@ define export_secrets
 endef
 
 # 2. LOW-LEVEL COMMANDS -------------------------------------------------------
-RUN_RELEASE       = cargo run --release
-SENTIMENT         = cargo run --bin sentiment --release
-CALCULATOR        = cargo run --bin calculator --release
-TOKEN_CHECKER     = cargo run --bin token_checker -- BTC ETH
-NAUTILUS          = cargo run --bin nautilus_example --features nautilus --release
-RAY_BALANCES      = cargo run --bin raydium_cli --release -- balances $(OWNER)
-RAY_TOP_COINS     = cargo run --bin raydium_top_coins --release
+RUN_RELEASE       = env RUST_LOG=$(LOG_LEVEL) cargo run --release
+SENTIMENT         = env RUST_LOG=$(LOG_LEVEL) cargo run --bin sentiment --release
+CALCULATOR        = env RUST_LOG=$(LOG_LEVEL) cargo run --bin calculator --release
+TOKEN_CHECKER     = env RUST_LOG=$(LOG_LEVEL) cargo run --bin token_checker -- BTC ETH
+NAUTILUS          = env RUST_LOG=$(LOG_LEVEL) cargo run --bin nautilus_example --features nautilus --release
+RAY_BALANCES      = env RUST_LOG=$(LOG_LEVEL) cargo run --bin raydium_cli --release -- balances $(OWNER)
+RAY_TOP_COINS     = env RUST_LOG=$(LOG_LEVEL) cargo run --bin raydium_top_coins --release
 
-SHUTTLE_RUN       = $(SHUTTLE_BIN) run    --secrets $(SECRETS)
-DEPLOY            = $(SHUTTLE_BIN) deploy --secrets $(SECRETS)
+SHUTTLE_RUN       = env RUST_LOG=$(LOG_LEVEL) $(SHUTTLE_BIN) run    --secrets $(SECRETS)
+DEPLOY            = env RUST_LOG=$(LOG_LEVEL) $(SHUTTLE_BIN) deploy --secrets $(SECRETS)
 
 FMT               = cargo fmt --all
 LINT              = cargo clippy --all-targets --all-features -- -D warnings
