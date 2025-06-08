@@ -25,13 +25,6 @@ anyhow = "1"
 thiserror = "1"
 num_cpus = "1"
 
-# Optional integration with Nautilus Trader. This dependency is only
-# built when the `nautilus` feature is enabled.
-nautilus-trader = { version = "0.0.1", optional = true }
-
-[features]
-nautilus = ["nautilus-trader"]
-
 [dev-dependencies]
 rstest = "0.18"
 

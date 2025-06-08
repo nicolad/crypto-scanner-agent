@@ -1,9 +1,9 @@
 use std::{error::Error, time::Duration};
 
-use shuttle_axum::axum::extract::ws::Message;
 use chrono::{DateTime, Utc};
-use futures::{StreamExt, SinkExt};
+use futures::{SinkExt, StreamExt};
 use serde::Serialize;
+use shuttle_axum::axum::extract::ws::Message;
 use tokio::sync::watch;
 use tokio_tungstenite::{connect_async, tungstenite};
 
@@ -18,8 +18,8 @@ pub struct Signal {
 
 /// Parse incoming JSON text into a list of [`Signal`]s.
 ///
-/// The function filters entries where the 24h percentage gain is below 5% or
-/// the quote volume is below $1M. Any valid signals are returned for further
+/// The function filters entries where the 24-hour percentage gain is below 5 % or
+/// the quote volume is below $1 M. Any valid signals are returned for further
 /// processing or broadcasting.
 fn extract_signals_from_text(txt: &str) -> Result<Vec<Signal>, Box<dyn Error + Send + Sync>> {
     let parsed: serde_json::Value = serde_json::from_str(txt)?;
@@ -47,13 +47,17 @@ fn extract_signals_from_text(txt: &str) -> Result<Vec<Signal>, Box<dyn Error + S
 
 /// Connect to the Raydium WebSocket feed and forward any valid signals to
 /// connected WebSocket clients via the provided watch channel.
+///
+/// *Fix:* `url` is now borrowed (`&str`) on each call so it is **not moved**
+/// into `connect_async`, eliminating the `E0382` compile error.
 pub async fn spawn_raydium_feed(tx: watch::Sender<Message>) {
     // Default Raydium public feed. Can be overridden by the RAYDIUM_WS_URL
     // environment variable if needed.
-    let url = std::env::var("RAYDIUM_WS_URL")
-        .unwrap_or_else(|_| "wss://api.raydium.io/ws".to_string());
+    let url =
+        std::env::var("RAYDIUM_WS_URL").unwrap_or_else(|_| "wss://api.raydium.io/ws".to_string());
+
     loop {
-        match connect_async(url).await {
+        match connect_async(url.as_str()).await {
             Ok((ws, _)) => {
                 tracing::info!("\u{1f7e2} Connected to Raydium stream");
                 if let Err(e) = handle_socket(ws, &tx).await {
@@ -62,10 +66,13 @@ pub async fn spawn_raydium_feed(tx: watch::Sender<Message>) {
             }
             Err(e) => tracing::error!("WS connect failed: {:?}", e),
         }
+
         for delay in [2u64, 4, 8, 16] {
-            tracing::info!("Reconnect in {}s", delay);
+            tracing::info!("Reconnect in {} s", delay);
             tokio::time::sleep(Duration::from_secs(delay)).await;
-            if connect_async(url).await.is_ok() {
+
+            // Try a lightweight probe before re-entering the outer loop
+            if connect_async(url.as_str()).await.is_ok() {
                 break;
             }
         }
@@ -80,6 +87,7 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let (mut sink, mut stream) = ws.split();
+
     while let Some(Ok(frame)) = stream.next().await {
         match frame {
             tungstenite::Message::Text(txt) => {
@@ -105,18 +113,8 @@ mod tests {
     #[tokio::test]
     async fn test_extract_signals_basic_filtering() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "5.5",
-                "q": "1500000",
-                "c": "30000"
-            },
-            {
-                "s": "ETHUSDT",
-                "P": "2.0",
-                "q": "900000",
-                "c": "2000"
-            }
+            { "s": "BTCUSDT", "P": "5.5", "q": "1500000", "c": "30000" },
+            { "s": "ETHUSDT", "P": "2.0", "q": "900000",  "c": "2000"  }
         ]"#;
 
         let signals = extract_signals_from_text(json).unwrap();
@@ -137,18 +135,8 @@ mod tests {
     #[tokio::test]
     async fn test_extract_signals_multiple_valid_entries() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "8.0",
-                "q": "2000000",
-                "c": "30000"
-            },
-            {
-                "s": "ETHUSDT",
-                "P": "5.0",
-                "q": "1500000",
-                "c": "2000"
-            }
+            { "s": "BTCUSDT", "P": "8.0", "q": "2000000", "c": "30000" },
+            { "s": "ETHUSDT", "P": "5.0", "q": "1500000", "c": "2000"  }
         ]"#;
 
         let signals = extract_signals_from_text(json).unwrap();
@@ -158,12 +146,7 @@ mod tests {
     #[test]
     fn test_extract_signals_non_numeric_fields_error() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "five",
-                "q": "1500000",
-                "c": "30000"
-            }
+            { "s": "BTCUSDT", "P": "five", "q": "1500000", "c": "30000" }
         ]"#;
 
         assert!(extract_signals_from_text(json).is_err());
@@ -172,12 +155,7 @@ mod tests {
     #[test]
     fn test_extract_signals_numeric_values_not_strings() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": 10,
-                "q": 2000000,
-                "c": 30000
-            }
+            { "s": "BTCUSDT", "P": 10, "q": 2000000, "c": 30000 }
         ]"#;
 
         let signals = extract_signals_from_text(json).unwrap();
@@ -201,12 +179,7 @@ mod tests {
     #[test]
     fn test_extract_signals_exact_threshold() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "5.0",
-                "q": "1000000",
-                "c": "100"
-            }
+            { "s": "BTCUSDT", "P": "5.0", "q": "1000000", "c": "100" }
         ]"#;
 
         let signals = extract_signals_from_text(json).unwrap();
@@ -221,12 +194,7 @@ mod tests {
     #[test]
     fn test_extract_signals_negative_values_filtered() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "-10",
-                "q": "2000000",
-                "c": "30000"
-            }
+            { "s": "BTCUSDT", "P": "-10", "q": "2000000", "c": "30000" }
         ]"#;
 
         let signals = extract_signals_from_text(json).unwrap();
@@ -236,12 +204,7 @@ mod tests {
     #[test]
     fn test_extract_signals_malformed_number_error() {
         let json = r#"[
-            {
-                "s": "BTCUSDT",
-                "P": "5.0",
-                "q": "1_000_000",
-                "c": "30000"
-            }
+            { "s": "BTCUSDT", "P": "5.0", "q": "1_000_000", "c": "30000" }
         ]"#;
 
         assert!(extract_signals_from_text(json).is_err());
