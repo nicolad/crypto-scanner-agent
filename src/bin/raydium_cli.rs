@@ -24,32 +24,58 @@ fn parse_args() -> Result<Command> {
     if args.is_empty() {
         return Err(anyhow!("no command provided"));
     }
+
     match args.remove(0).as_str() {
         "list-pools" => Ok(Command::ListPools),
-        "balances" => {
-            // Owner can be provided as the first positional argument or via the
-            // OWNER environment variable loaded from Shuttle secrets.
-            let owner = if !args.is_empty() && !args[0].starts_with("--") {
-                args.remove(0)
-            } else {
-                std::env::var("OWNER")
-                    .map_err(|_| anyhow!("balances requires owner"))?
-            };
 
-            let mut rpc = "https://api.mainnet-beta.solana.com".to_string();
-            if !args.is_empty() && args[0].starts_with("--rpc=") {
-                rpc = args.remove(0)[6..].to_string();
+        "balances" => {
+            //------------------------------------------------------------------
+            //  Owner can be:
+            //    1. the first positional arg   `raydium_cli balances <PUBKEY>`
+            //    2. $OWNER env-var (e.g. loaded by dotenv / Shuttle secrets)
+            //    3. an *empty* token "" injected by Make → treat as “missing”
+            //------------------------------------------------------------------
+            let mut owner = String::new();
+
+            if !args.is_empty() && !args[0].starts_with("--") {
+                owner = args.remove(0);
+                if owner.trim().is_empty() {
+                    // Discard dummy empty argument created by ${OWNER} expansion.
+                    owner.clear();
+                }
             }
+            if owner.is_empty() {
+                owner = std::env::var("OWNER").unwrap_or_default();
+            }
+
+            if owner.trim().is_empty() {
+                return Err(anyhow!(
+                    "balances requires owner (pass it as arg or set OWNER env-var)"
+                ));
+            }
+
+            // Optional --rpc=<URL>, default to mainnet-beta.
+            let mut rpc = "https://api.mainnet-beta.solana.com".to_owned();
+            if !args.is_empty() && args[0].starts_with("--rpc=") {
+                rpc = args.remove(0)[6..].to_owned();
+            }
+
             Ok(Command::Balances { owner, rpc })
         }
+
         "info" => Ok(Command::Info),
+
         "price" => {
             if args.is_empty() {
                 return Err(anyhow!("price requires mint"));
             }
-            Ok(Command::Price { mint: args.remove(0) })
+            Ok(Command::Price {
+                mint: args.remove(0),
+            })
         }
+
         "mints" => Ok(Command::Mints),
+
         _ => Err(anyhow!("unknown command")),
     }
 }
@@ -86,7 +112,9 @@ async fn fetch_price(client: &Client, ids: &[&str]) -> Result<HashMap<String, f6
     let url = Url::parse_with_params(PRICE_URL, &[("ids", ids.join(","))])?;
     let outer: PriceOuter = client.get(url).send().await?.json().await?;
     if !outer.success {
-        Err(anyhow!("Raydium API returned success=false for /mint/price"))
+        Err(anyhow!(
+            "Raydium API returned success=false for /mint/price"
+        ))
     } else {
         Ok(outer.data)
     }
@@ -196,11 +224,11 @@ async fn fetch_pools(client: &Client) -> Result<Vec<Pool>> {
                 arr.to_vec()
             } else {
                 let mut out = vec![];
-                if let Some(arr) = obj.get("official").and_then(|l| l.as_array()) {
-                    out.extend(arr.to_owned());
+                if let Some(a) = obj.get("official").and_then(|l| l.as_array()) {
+                    out.extend(a.to_owned());
                 }
-                if let Some(arr) = obj.get("unOfficial").and_then(|l| l.as_array()) {
-                    out.extend(arr.to_owned());
+                if let Some(a) = obj.get("unOfficial").and_then(|l| l.as_array()) {
+                    out.extend(a.to_owned());
                 }
                 out
             }
@@ -209,21 +237,21 @@ async fn fetch_pools(client: &Client) -> Result<Vec<Pool>> {
         }
     }
 
-    let pools_json = extract_lists(&body);
-    if pools_json.is_empty() {
+    let pools = extract_lists(&body);
+    if pools.is_empty() {
         return Err(anyhow!("Raydium API: no pool list found in response"));
     }
-    let mut out = Vec::with_capacity(pools_json.len());
-    for item in pools_json {
+
+    let mut out = Vec::with_capacity(pools.len());
+    for item in pools {
         if let Ok(raw) = serde_json::from_value::<RawPool>(item) {
-            if let Some(pool) = raw_to_pool(&raw) {
-                out.push(pool);
+            if let Some(p) = raw_to_pool(&raw) {
+                out.push(p);
             }
         }
     }
     Ok(out)
 }
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -232,8 +260,11 @@ async fn main() -> Result<()> {
 
     match cmd {
         Command::ListPools => {
-            for pool in fetch_pools(&http).await? {
-                println!("{:<20} {}→{} (fee {} bps)", pool.id, pool.token0, pool.token1, pool.fee_bps);
+            for p in fetch_pools(&http).await? {
+                println!(
+                    "{:<20} {}→{} (fee {} bps)",
+                    p.id, p.token0, p.token1, p.fee_bps
+                );
             }
         }
         Command::Balances { owner, rpc } => {
@@ -242,11 +273,11 @@ async fn main() -> Result<()> {
             }
         }
         Command::Info => {
-            let info = fetch_main_info(&http).await?;
+            let i = fetch_main_info(&http).await?;
             println!(
                 "Raydium TVL  : ${:.2} M\nRaydium 24 h : ${:.2} M",
-                info.tvl / 1_000_000.0,
-                info.volume_24 / 1_000_000.0
+                i.tvl / 1_000_000.0,
+                i.volume_24 / 1_000_000.0
             );
         }
         Command::Price { mint } => {
@@ -260,12 +291,15 @@ async fn main() -> Result<()> {
             }
         }
         Command::Mints => {
-            let tokens = fetch_mints(&http).await?;
-            if tokens.is_empty() {
+            let toks = fetch_mints(&http).await?;
+            if toks.is_empty() {
                 println!("(no mints found)");
             } else {
-                for t in tokens {
-                    println!("{:<44} {:<10} {:<3} {}", t.mint, t.symbol, t.decimals, t.name);
+                for t in toks {
+                    println!(
+                        "{:<44} {:<10} {:<3} {}",
+                        t.mint, t.symbol, t.decimals, t.name
+                    );
                 }
             }
         }

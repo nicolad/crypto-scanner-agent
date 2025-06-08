@@ -1,98 +1,84 @@
 # Makefile ─────────────────────────────────────────────────────────────────────
+# 0. Prerequisites
+#    • python-dotenv CLI:  brew install python-dotenv      # already on your Mac
+#    • .env in project root with KEY=value lines (e.g. OWNER=abc123)
+#
 # 1. CONFIGURABLE KNOBS -------------------------------------------------------
-SECRETS     ?= Secrets.toml             # override e.g.  make run SECRETS=foo.toml
-SHUTTLE_BIN ?= cargo shuttle            # or simply `shuttle` if you prefer
+ENV_FILE   ?= .env                    # override: make ENV_FILE=prod.env run
+DOTENV_BIN ?= $(shell command -v dotenv)
+SHUTTLE_BIN?= cargo shuttle
 
-# 2. SHELL SETUP --------------------------------------------------------------
-.ONESHELL:                              # each recipe runs in a *single* shell
-SHELL := /bin/bash                      # predictable Bashism support
+ifeq ($(DOTENV_BIN),)
+$(error 🚫  'dotenv' CLI not found. Install with: brew install python-dotenv)
+endif
 
-# 3. SECRET HELPER ------------------------------------------------------------
-# Export every K = V pair from $(SECRETS) (quotes optional, ignores comments)
-define export_secrets
-	@if [ -f "$(SECRETS)" ]; then \
-		echo "⏩  exporting secrets from $(SECRETS)"; \
-		grep -E '^[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*=' "$(SECRETS)" \
-		| sed -E 's/^[[:space:]]*//;s/[[:space:]]*=[[:space:]]*/=/' \
-		| while IFS='=' read -r k v; do \
-				v="$${v%\"}"; v="$${v#\"}"; v="$${v%\'}"; v="$${v#\'}"; \
-				export "$$k=$$v"; \
-		  done; \
-	else \
-		echo "⚠️  $(SECRETS) not found – no secrets exported"; \
-	fi
-endef
+# Single macro that injects secrets for any command
+DO = $(DOTENV_BIN) -f $(ENV_FILE) run --   # ← NOTE the “run --”
 
-# Helper: OWNER value straight from the secrets file (no runtime deps)
-OWNER := $(shell awk -F= '/^[[:space:]]*owner[[:space:]]*=/{gsub(/["'\'']/,"");gsub(/^[[:space:]]+|[[:space:]]+$$/,"",$$2);print $$2;exit}' $(SECRETS))
+# 2. LOW-LEVEL COMMANDS -------------------------------------------------------
+CARGO           = cargo
+LOCAL_RUN       = $(CARGO) run --release
+SENTIMENT       = $(CARGO) run --bin sentiment --release
+CALCULATOR      = $(CARGO) run --bin calculator --release
+TOKEN_CHECKER   = $(CARGO) run --bin token_checker -- BTC ETH
+NAUTILUS        = $(CARGO) run --bin nautilus_example --features nautilus --release
+RAY_BALANCES    = $(CARGO) run --bin raydium_cli --release -- balances "$${OWNER}"
+RAY_TOP_COINS   = $(CARGO) run --bin raydium_top_coins --release
 
-# 4. LOW-LEVEL COMMANDS -------------------------------------------------------
-LOCAL_RUN         = cargo run --release
-SENTIMENT         = cargo run --bin sentiment --release
-CALCULATOR        = cargo run --bin calculator --release
-TOKEN_CHECKER     = cargo run --bin token_checker -- BTC ETH
-NAUTILUS          = cargo run --bin nautilus_example --features nautilus --release
-RAY_BALANCES      = cargo run --bin raydium_cli --release -- balances $(OWNER)
-RAY_TOP_COINS     = cargo run --bin raydium_top_coins --release
+SHUTTLE_RUN     = $(SHUTTLE_BIN) run    --secrets $(ENV_FILE)
+DEPLOY          = $(SHUTTLE_BIN) deploy --secrets $(ENV_FILE)
 
-SHUTTLE_RUN       = $(SHUTTLE_BIN) run --secrets $(SECRETS)
-DEPLOY            = $(SHUTTLE_BIN) deploy --secrets $(SECRETS)
+FMT             = $(CARGO) fmt --all
+LINT            = $(CARGO) clippy --all-targets --all-features -- -D warnings
+CHECK           = $(CARGO) check
+TEST            = $(CARGO) test
 
-FMT               = cargo fmt --all
-LINT              = cargo clippy --all-targets --all-features -- -D warnings
-CHECK             = cargo check
-TEST              = cargo test
-
-# 5. PUBLIC TARGETS -----------------------------------------------------------
+# 3. PUBLIC TARGETS -----------------------------------------------------------
 .PHONY: run local-run sentiment calculator token-checker \
         raydium-balances raydium-top-coins nautilus \
         shuttle-run deploy fmt lint check test
 
-# 6. TARGET IMPLEMENTATIONS ---------------------------------------------------
-# Preferred: run through Shuttle so secrets are also available to the service
+# Preferred entrypoint: run via Shuttle so secrets are always present
 run: shuttle-run
 
-# Optional direct cargo run (still exports secrets first)
+# ---- Service targets --------------------------------------------------------
 local-run:
-	$(call export_secrets)
-	$(LOCAL_RUN)
+	$(DO) $(LOCAL_RUN)
 
 sentiment:
-	$(call export_secrets)
-	$(SENTIMENT)
+	$(DO) $(SENTIMENT)
 
 calculator:
-	$(call export_secrets)
-	$(CALCULATOR)
+	$(DO) $(CALCULATOR)
 
 token-checker:
-	$(call export_secrets)
-	$(TOKEN_CHECKER)
+	$(DO) $(TOKEN_CHECKER)
 
 raydium-balances:
-	$(call export_secrets)
-	@if [ -z "$(OWNER)" ]; then \
-		echo "❌  OWNER not found in $(SECRETS)"; exit 1; \
-	fi
-	$(RAY_BALANCES)
+	$(DO) $(RAY_BALANCES)
 
 raydium-top-coins:
-	$(call export_secrets)
-	$(RAY_TOP_COINS)
+	$(DO) $(RAY_TOP_COINS)
 
 nautilus:
-	$(call export_secrets)
-	$(NAUTILUS)
+	$(DO) $(NAUTILUS)
 
-# Explicit Shuttle wrappers ---------------------------------------------------
+# ---- Shuttle wrappers -------------------------------------------------------
 shuttle-run:
-	$(SHUTTLE_RUN)
+	$(DO) $(SHUTTLE_RUN)
 
 deploy:
-	$(DEPLOY)
+	$(DO) $(DEPLOY)
 
-# Code-quality helpers --------------------------------------------------------
-fmt:   ; $(FMT)
-lint:  ; $(LINT)
-check: ; $(CHECK)
-test:  ; $(TEST)
+# ---- Code-quality helpers (no secrets needed) -------------------------------
+fmt:
+	$(FMT)
+
+lint:
+	$(LINT)
+
+check:
+	$(CHECK)
+
+test:
+	$(TEST)
