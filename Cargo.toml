@@ -14,7 +14,11 @@ shuttle-runtime = "0.54.0"
 tower-http = { version = "0.5.0", features = ["fs"] }
 tokio = { version = "1.37", features = ["full"] }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip", "brotli", "deflate"] }
+reqwest = { version = "0.12.15", default-features = false, features = [
+    "blocking",      # ← gives you reqwest::blocking::Client
+    "json",
+    "rustls-tls"     # or "native-tls" if you prefer
+] }
 raydium-sdk-V2 = "0.0.6"
 tracing = "0.1"
 tracing-subscriber = "0.3"
@@ -27,4 +31,5 @@ num_cpus = "1"
 
 [dev-dependencies]
 rstest = "0.18"
-
+tracing          = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

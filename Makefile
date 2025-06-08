@@ -58,7 +58,8 @@ raydium-balances:
 	$(DO) $(RAY_BALANCES)
 
 raydium-top-coins:
-	$(DO) $(RAY_TOP_COINS)
+	RUST_LOG=raydium_cli=debug,cargo=info \
+		$(CARGO) run --bin raydium_top_coins --release
 
 nautilus:
 	$(DO) $(NAUTILUS)
